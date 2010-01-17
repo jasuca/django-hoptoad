@@ -3,10 +3,11 @@ import logging
 import itertools
 
 from django.core.exceptions import MiddlewareNotUsed
+from django.conf import settings
 
 from hoptoad import get_hoptoad_settings
-from handlers import get_handler
-from api import htv2
+from hoptoad.handlers import get_handler
+from hoptoad.api import htv2
 
 
 logger = logging.getLogger(__name__)
@@ -17,15 +18,15 @@ class HoptoadNotifierMiddleware(object):
         """Initialize the middleware."""
 
         hoptoad_settings = get_hoptoad_settings()
-        self._init_middleware(self, hoptoad_settings)
+        self._init_middleware(hoptoad_settings)
 
-    def _init_middleware(self, hoptoad_settings)
+    def _init_middleware(self, hoptoad_settings):
 
         if 'HOPTOAD_API_KEY' not in hoptoad_settings:
             # no api key, abort!
             raise MiddlewareNotUsed
 
-        if setings.DEBUG:
+        if settings.DEBUG:
             if not hoptoad_settings.get('HOPTOAD_NOTIFY_WHILE_DEBUG', None):
                 # do not use hoptoad if you're in debug mode..
                 raise MiddlewareNotUsed
@@ -62,7 +63,8 @@ class HoptoadNotifierMiddleware(object):
 
         sc = response.status_code
         if sc in [404, 403] and getattr(self, "notify_%d" % sc):
-            self.handler.enqueue(htv2.generate_payload(request), self.timeout)
+            self.handler.enqueue(htv2.generate_payload(request, response=sc),
+                                 self.timeout)
 
         return response
 
@@ -77,10 +79,7 @@ class HoptoadNotifierMiddleware(object):
         if self._ignore(request):
             return None
 
-        #exc, _, tb = sys.exc_info()
-
-        #payload = _generate_payload(request, exc, tb)
-        #self.handler.enqueue(payload, self.timeout)
-        self.handler.enqueue(htv2.generate_payload(request), self.timeout)
+        self.handler.enqueue(htv2.generate_payload(request, exc=exc),
+                             self.timeout)
         return None
 

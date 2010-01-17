@@ -24,3 +24,4 @@ def get_hoptoad_settings():
             # should probably log here
             raise MiddlewareNotUsed
 
+    return hoptoad_settings

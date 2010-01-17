@@ -4,19 +4,10 @@ various different protocols.
 import logging
 
 from hoptoad import get_hoptoad_settings
-from handlers.threaded import ThreadedNotifier
-
+from hoptoad.handlers.threaded import ThreadedNotifier
 
 logger = logging.getLogger(__name__)
 
-
-class Notifier(object):
-    """Interface for all various implementations to provide a seamless API
-    to the notification middleware
-
-    """
-    def enqueue(self, payload, timeout):
-        raise NotImplementedError
 
 def get_handler(*args, **kwargs):
     """Returns an initialized handler object"""

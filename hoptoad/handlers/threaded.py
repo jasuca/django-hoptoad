@@ -1,12 +1,12 @@
 import os
 import threading
+import time
 import logging
 
-from handlers import Notifier
-from api import htv2
+from hoptoad.api import htv2
 
-from utils.threadpool import WorkRequest, ThreadPool
-from utils.threadpool import NoResultsPending
+from hoptoad.handlers.utils.threadpool import WorkRequest, ThreadPool
+from hoptoad.handlers.utils.threadpool import NoResultsPending
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ def _exception_handler(request, exc_info):
     )
 
 
-class ThreadedNotifier(Notifier, threading.Thread):
+class ThreadedNotifier(threading.Thread):
     """A daemon thread that spawns a threadpool of worker threads.
 
     Waits for queue additions through the enqueue method.
@@ -36,7 +36,7 @@ class ThreadedNotifier(Notifier, threading.Thread):
     """
     def __init__(self, threadpool_threadcount, cb=None, exc_cb=None):
         _threadname = "Hoptoad%s-%d" % (self.__class__.__name__, os.getpid())
-        threading.Thread.__init__(self, _threadname)
+        threading.Thread.__init__(self, name=_threadname)
         self.threads = threadpool_threadcount
         self.daemon = True # daemon thread... important!
         self.callback = cb

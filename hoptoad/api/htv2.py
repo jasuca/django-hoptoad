@@ -9,15 +9,15 @@ from django.conf import settings
 
 from hoptoad import VERSION, NAME, URL
 from hoptoad import get_hoptoad_settings
-from htv1 import _parse_environment, _parse_request, _parse_session
-from htv1 import _parse_message
+from hoptoad.api.htv1 import _parse_environment, _parse_request, _parse_session
+from hoptoad.api.htv1 import _parse_message
 
 def _class_name(class_):
     return class_.__class__.__name__
 
-def _handle_errors(request):
-    if request.status_code in [403, 404]:
-        code = "Http%s" % request.status_code
+def _handle_errors(request, response, exc):
+    if response:
+        code = "Http%s" % response
         msg = "%(code)s: %(response)s at %(uri)s" % {
                    'code' : code,
                    'response' : {'Http403' : "Forbidden",
@@ -27,10 +27,12 @@ def _handle_errors(request):
         return (code, msg)
 
     excc, inst = sys.exc_info()[:2]
-    return _class_name(excc), htv1._parse_message(excc)
+    if exc:
+        excc = exc
+    return _class_name(excc), _parse_message(excc)
 
 
-def generate_payload(request):
+def generate_payload(request, response=None, exc=None):
     """Generate an XML payload for a Hoptoad notification.
 
     Parameters:
@@ -38,7 +40,7 @@ def generate_payload(request):
 
     """
     hoptoad_settings = get_hoptoad_settings()
-    p_error_class, p_message = _handle_errors(request)
+    p_error_class, p_message = _handle_errors(request, response, exc)
 
     # api v2 from: http://help.hoptoadapp.com/faqs/api-2/notifier-api-v2
     xdoc = getDOMImplementation().createDocument(None, "notice", None)
@@ -49,7 +51,7 @@ def generate_payload(request):
 
     # /notice/api-key
     api_key = xdoc.createElement('api-key')
-    api_key_data = xdoc.createTextNode(hoptoad_settings()['HOPTOAD_API_KEY'])
+    api_key_data = xdoc.createTextNode(hoptoad_settings['HOPTOAD_API_KEY'])
     api_key.appendChild(api_key_data)
     notice.appendChild(api_key)
 
@@ -59,7 +61,7 @@ def generate_payload(request):
     notifier = xdoc.createElement('notifier')
     for key, value in zip(["name", "version", "url"], [NAME, VERSION, URL]):
         key = xdoc.createElement(key)
-        value = xdoc.createTextNode(value)
+        value = xdoc.createTextNode(str(value))
         key.appendChild(value)
         notifier.appendChild(key)
     notice.appendChild(notifier)
@@ -67,7 +69,7 @@ def generate_payload(request):
     # /notice/error/class
     # /notice/error/message
     error = xdoc.createElement('error')
-    for key, value in zip(["class", "message"], p_error_class, p_message):
+    for key, value in zip(["class", "message"], [p_error_class, p_message]):
         key = xdoc.createElement(key)
         value = xdoc.createTextNode(value)
         key.appendChild(value)
@@ -79,9 +81,9 @@ def generate_payload(request):
     reversed_backtrace = reversed(traceback.extract_tb(sys.exc_info()[2]))
     for filename, lineno, funcname, text in reversed_backtrace:
         line = xdoc.createElement('line')
-        line.setAttribute('file', filename)
-        line.setAttribute('number', lineno)
-        line.setAttribute('method', funcname)
+        line.setAttribute('file', str(filename))
+        line.setAttribute('number', str(lineno))
+        line.setAttribute('method', str(funcname))
         backtrace.appendChild(line)
     error.appendChild(backtrace)
     notice.appendChild(error)
@@ -103,7 +105,7 @@ def generate_payload(request):
     # /notice/request/action -- action which error occured
     # ... no fucking clue..
     action = xdoc.createElement('action') # maybe GET/POST??
-    action_data = u"%s %s" % (request.method, request.META.PATH_INFO)
+    action_data = u"%s %s" % (request.method, request.META['PATH_INFO'])
     action_data = xdoc.createTextNode(action_data)
     action.appendChild(action_data)
     xrequest.appendChild(action)
@@ -113,7 +115,7 @@ def generate_payload(request):
     for key, value in _parse_request(request).iteritems():
         var = xdoc.createElement('var')
         var.setAttribute('key', key)
-        value = xdoc.createTextNode(value)
+        value = xdoc.createTextNode(str(value))
         var.appendChild(value)
         params.appendChild(var)
     xrequest.appendChild(params)
@@ -123,7 +125,7 @@ def generate_payload(request):
     for key, value in _parse_session(request.session).iteritems():
         var = xdoc.createElement('var')
         var.setAttribute('key', key)
-        value = xdoc.createTextNode(value)
+        value = xdoc.createTextNode(str(value))
         var.appendChild(value)
         sessions.appendChild(var)
     xrequest.appendChild(params)
@@ -133,7 +135,7 @@ def generate_payload(request):
     for key, value in _parse_environment(request).iteritems():
         var = xdoc.createElement('var')
         var.setAttribute('key', key)
-        value = xdoc.createTextNode(value)
+        value = xdoc.createTextNode(str(value))
         var.appendChild(value)
         cgidata.appendChild(var)
     xrequest.appendChild(cgidata)
@@ -149,7 +151,7 @@ def generate_payload(request):
     # no idea...
     # envname.appendChild(xdoc.createTextNode())
     serverenv.appendChild(envname)
-    notice.append(serverenv)
+    notice.appendChild(serverenv)
 
     return xdoc.toxml('utf-8')
 
