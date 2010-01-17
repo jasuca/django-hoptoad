@@ -5,8 +5,8 @@ import logging
 from handlers import Notifier
 from protocols import htv2
 
-from _utils.threadpool import WorkRequest, ThreadPool
-from _utils.threadpool import NoResultsPending
+from utils.threadpool import WorkRequest, ThreadPool
+from utils.threadpool import NoResultsPending
 
 
 logger = logging.getLogger(__name__)
