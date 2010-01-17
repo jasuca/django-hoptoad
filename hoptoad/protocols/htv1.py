@@ -2,6 +2,10 @@ import traceback
 import urllib2
 import yaml
 
+from django.views.debug import get_safe_settings
+from django.conf import settings
+
+
 def _parse_environment(request):
     """Return an environment mapping for a notification from the given request."""
     env = dict( (str(k), str(v)) for (k, v) in get_safe_settings().items() )

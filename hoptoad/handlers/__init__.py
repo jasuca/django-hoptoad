@@ -3,6 +3,8 @@ various different protocols.
 """
 import logging
 
+from django.conf import settings
+
 from handlers.threaded import ThreadedNotifier
 
 
@@ -17,7 +19,7 @@ class Notifier(object):
     def enqueue(self, payload, timeout):
         raise NotImplementedError
 
-def get_handler(settings, *args, **kwargs):
+def get_handler(*args, **kwargs):
     """Returns an initialized handler object"""
     all_settings = dir(settings)
 

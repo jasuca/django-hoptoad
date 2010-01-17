@@ -1,9 +1,9 @@
 import sys
 import re
 import logging
+import itertools
 
 from django.core.exceptions import MiddlewareNotUsed
-from django.views.debug import get_safe_settings
 from django.conf import settings
 
 from protocols import htv2
@@ -16,27 +16,40 @@ logger = logging.getLogger(__name__)
 class HoptoadNotifierMiddleware(object):
     def __init__(self):
         """Initialize the middleware."""
-        all_settings = dir(settings)
 
-        if 'HOPTOAD_API_KEY' not in all_settings or not settings.HOPTOAD_API_KEY:
+        hoptoad_settings = getattr(settings, "HOPTOAD_SETTINGS", None)
+
+        if not hoptoad_settings:
+            # do some backward compatibility work to combine all hoptoad
+            # settings in a dictionary
+            hoptoad_settings = {}
+            # for every attribute that starts with hoptoad
+            for attr in itertools.ifilter(lambda x: x.startswith('HOPTOAD'),
+                                          dir(settings)):
+                hoptoad_settings[attr] = getattr(settings, attr)
+
+            if not hoptoad_settings:
+                # there were no settings for hoptoad at all..
+                # should probably log here
+                raise MiddlewareNotUsed
+
+        if 'HOPTOAD_API_KEY' not in hoptoad_settings:
+            # no api key, abort!
             raise MiddlewareNotUsed
 
-        if settings.DEBUG and \
-           (not 'HOPTOAD_NOTIFY_WHILE_DEBUG' in all_settings
-            or not settings.HOPTOAD_NOTIFY_WHILE_DEBUG ):
-            raise MiddlewareNotUsed
+        if setings.DEBUG:
+            if not hoptoad_settings.get('HOPTOAD_NOTIFY_WHILE_DEBUG', None):
+                # do not use hoptoad if you're in debug mode..
+                raise MiddlewareNotUsed
 
-        self.timeout = ( settings.HOPTOAD_TIMEOUT
-                         if 'HOPTOAD_TIMEOUT' in all_settings else None )
+        self.timeout = hoptoad_settings.get('HOPTOAD_TIMEOUT', None)
+        self.notify_404 = hoptoad_settings.get('HOPTOAD_NOTIFY_404', False)
+        self.notify_403 = hoptoad_settings.get('HOPTOAD_NOTIFY_403', False)
 
-        self.notify_404 = ( settings.HOPTOAD_NOTIFY_404
-                            if 'HOPTOAD_NOTIFY_404' in all_settings else False )
-        self.notify_403 = ( settings.HOPTOAD_NOTIFY_403
-                            if 'HOPTOAD_NOTIFY_403' in all_settings else False )
-        self.ignore_agents = ( map(re.compile, settings.HOPTOAD_IGNORE_AGENTS)
-                            if 'HOPTOAD_IGNORE_AGENTS' in all_settings else [] )
+        ignorable_agents = hoptoad_settings.get('HOPTOAD_IGNORE_AGENTS', []
+        self.ignore_agents = map(re.compile, ignorable_agents)
 
-        self.handler = get_handler(settings)
+        self.handler = get_handler()
 
     def _ignore(self, request):
         """Return True if the given request should be ignored, False otherwise."""
@@ -86,7 +99,7 @@ class HoptoadNotifierMiddleware(object):
         if self._ignore(request):
             return None
 
-        excc, _, tb = sys.exc_info()
+        exc, _, tb = sys.exc_info()
 
         payload = _generate_payload(request, exc, tb)
         self.handler.enqueue(payload, self.timeout)

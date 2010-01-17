@@ -1,6 +1,11 @@
 import traceback
 import urllib2
 import yaml
+from xml.dom.minidom import getDOMImplementation
+
+from django.views.debug import get_safe_settings
+from django.conf import settings
+
 
 def _parse_environment(request):
     """Return an environment mapping for a notification from the given request."""
@@ -56,6 +61,11 @@ def _generate_payload(request, exc=None, trace=None, message=None, error_class=N
     p_environment = _parse_environment(request)
     p_request = _parse_request(request)
     p_session = _parse_session(request.session)
+
+    # api v2 from: http://help.hoptoadapp.com/faqs/api-2/notifier-api-v2
+    xmlresp = getDOMImplementation().createDocument(None, "notice", None)
+
+    return xmlresp.toxml('utf-8')
 
     return yaml.dump({ 'notice': {
         'api_key':       settings.HOPTOAD_API_KEY,
