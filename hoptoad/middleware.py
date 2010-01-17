@@ -1,11 +1,10 @@
-import sys
 import re
 import logging
 import itertools
 
 from django.core.exceptions import MiddlewareNotUsed
-from django.conf import settings
 
+from hoptoad import get_hoptoad_settings
 from protocols import htv2
 from handlers import get_handler
 
@@ -17,22 +16,7 @@ class HoptoadNotifierMiddleware(object):
     def __init__(self):
         """Initialize the middleware."""
 
-        hoptoad_settings = getattr(settings, "HOPTOAD_SETTINGS", None)
-
-        if not hoptoad_settings:
-            # do some backward compatibility work to combine all hoptoad
-            # settings in a dictionary
-            hoptoad_settings = {}
-            # for every attribute that starts with hoptoad
-            for attr in itertools.ifilter(lambda x: x.startswith('HOPTOAD'),
-                                          dir(settings)):
-                hoptoad_settings[attr] = getattr(settings, attr)
-
-            if not hoptoad_settings:
-                # there were no settings for hoptoad at all..
-                # should probably log here
-                raise MiddlewareNotUsed
-
+        hoptoad_settings = get_hoptoad_settings()
         self._init_middleware(self, hoptoad_settings)
 
     def _init_middleware(self, hoptoad_settings)
