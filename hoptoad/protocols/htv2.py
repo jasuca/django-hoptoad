@@ -40,20 +40,12 @@ def _parse_session(session):
     return dict( (str(k), str(v)) for (k, v) in session.items() )
 
 
-def _generate_payload(request, exc=None, trace=None, message=None, error_class=None):
-    """Generate a YAML payload for a Hoptoad notification.
+def generate_payload(request):
+    """Generate an XML payload for a Hoptoad notification.
 
     Parameters:
     request -- A Django HTTPRequest.  This is required.
 
-    Keyword parameters:
-    exc -- A Python Exception object.  If this is not given the
-           mess parameter must be.
-    trace -- A Python Traceback object.  This is not required.
-    message -- A string representing the error message.  If this is not
-               given, the exc parameter must be.
-    error_class -- A string representing the error class.  If this is not
-                   given the excc parameter must be.
     """
     p_message = message if message else _parse_message(exc)
     p_error_class = error_class if error_class else exc.__class__.__name__
@@ -63,7 +55,11 @@ def _generate_payload(request, exc=None, trace=None, message=None, error_class=N
     p_session = _parse_session(request.session)
 
     # api v2 from: http://help.hoptoadapp.com/faqs/api-2/notifier-api-v2
-    xmlresp = getDOMImplementation().createDocument(None, "notice", None)
+    xdoc = getDOMImplementation().createDocument(None, "notice", None)
+    # set the notice element to version 2.0
+    xdoc.firstChild.setAttribute('version', '2.0')
+    xmlify(xmlresp, ())
+    # generate notice..
 
     return xmlresp.toxml('utf-8')
 

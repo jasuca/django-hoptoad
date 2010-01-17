@@ -33,6 +33,10 @@ class HoptoadNotifierMiddleware(object):
                 # should probably log here
                 raise MiddlewareNotUsed
 
+        self._init_middleware(self, hoptoad_settings)
+
+    def _init_middleware(self, hoptoad_settings)
+
         if 'HOPTOAD_API_KEY' not in hoptoad_settings:
             # no api key, abort!
             raise MiddlewareNotUsed
@@ -46,7 +50,7 @@ class HoptoadNotifierMiddleware(object):
         self.notify_404 = hoptoad_settings.get('HOPTOAD_NOTIFY_404', False)
         self.notify_403 = hoptoad_settings.get('HOPTOAD_NOTIFY_403', False)
 
-        ignorable_agents = hoptoad_settings.get('HOPTOAD_IGNORE_AGENTS', []
+        ignorable_agents = hoptoad_settings.get('HOPTOAD_IGNORE_AGENTS', [])
         self.ignore_agents = map(re.compile, ignorable_agents)
 
         self.handler = get_handler()
@@ -67,25 +71,14 @@ class HoptoadNotifierMiddleware(object):
 
         Regardless of whether Hoptoad is notified, the reponse object will
         be returned unchanged.
+
         """
         if self._ignore(request):
             return response
 
-        if self.notify_404 and response.status_code == 404:
-            error_class = 'Http404'
-
-            message = 'Http404: Page not found at %s' % request.build_absolute_uri()
-            payload = _generate_payload(request, error_class=error_class, message=message)
-
-            self.handler.enqueue(payload, self.timeout)
-
-        if self.notify_403 and response.status_code == 403:
-            error_class = 'Http403'
-
-            message = 'Http403: Forbidden at %s' % request.build_absolute_uri()
-            payload = _generate_payload(request, error_class=error_class, message=message)
-
-            self.handler.enqueue(payload, self.timeout)
+        sc = response.status_code
+        if sc in [404, 403] and getattr(self, "notify_%d" % sc):
+            self.handler.enqueue(htv2.generate_payload(request), self.timeout)
 
         return response
 
@@ -95,14 +88,15 @@ class HoptoadNotifierMiddleware(object):
         Hoptoad will be notified of the exception and None will be
         returned so that Django's normal exception handling will then
         be used.
+
         """
         if self._ignore(request):
             return None
 
-        exc, _, tb = sys.exc_info()
+        #exc, _, tb = sys.exc_info()
 
-        payload = _generate_payload(request, exc, tb)
-        self.handler.enqueue(payload, self.timeout)
-
+        #payload = _generate_payload(request, exc, tb)
+        #self.handler.enqueue(payload, self.timeout)
+        self.handler.enqueue(htv2.generate_payload(request), self.timeout)
         return None
 
