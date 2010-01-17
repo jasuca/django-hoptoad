@@ -3,8 +3,7 @@ various different protocols.
 """
 import logging
 
-from django.conf import settings
-
+from hoptoad import get_hoptoad_settings
 from handlers.threaded import ThreadedNotifier
 
 
@@ -21,14 +20,8 @@ class Notifier(object):
 
 def get_handler(*args, **kwargs):
     """Returns an initialized handler object"""
-    all_settings = dir(settings)
-
-    if 'HOPTOAD_HANDLER_NAME' not in all_settings or\
-        settings.HOPTOAD_HANDLER_NAME.lower() == 'threadpool':
-
-        if 'HOPTOAD_THREAD_COUNT' in all_settings:
-            threads = settings.HOPTOAD_THREAD_COUNT
-        else:
-            threads = 4
-
-        return ThreadedNotifier(threads, *args, **kwargs)
+    hoptoad_settings = get_hoptoad_settings()
+    handler = hoptoad_settings.get("HOPTOAD_HANDLER", "threadpool")
+    if handler.lower() == 'threadpool':
+        threads = hoptoad_settings.get("HOPTOAD_THREAD_COUNT", 4)
+        return ThreadedNotifier(threads , *args, **kwargs)

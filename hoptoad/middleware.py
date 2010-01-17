@@ -5,8 +5,8 @@ import itertools
 from django.core.exceptions import MiddlewareNotUsed
 
 from hoptoad import get_hoptoad_settings
-from protocols import htv2
 from handlers import get_handler
+from api import htv2
 
 
 logger = logging.getLogger(__name__)

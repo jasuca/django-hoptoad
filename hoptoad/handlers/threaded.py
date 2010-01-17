@@ -3,7 +3,7 @@ import threading
 import logging
 
 from handlers import Notifier
-from protocols import htv2
+from api import htv2
 
 from utils.threadpool import WorkRequest, ThreadPool
 from utils.threadpool import NoResultsPending
