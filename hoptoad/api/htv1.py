@@ -10,14 +10,16 @@ from hoptoad import get_hoptoad_settings
 
 PROTECTED_PARAMS = frozenset(get_hoptoad_settings().get('HOPTOAD_PROTECTED_PARAMS', []))
 
+
 def _parse_environment(request):
     """Return an environment mapping for a notification from the given request."""
     env = dict( (str(k), str(v)) for (k, v) in get_safe_settings().items() )
     env.update( dict( (str(k), str(v)) for (k, v) in request.META.items() ) )
-    
+
     env['REQUEST_URI'] = request.build_absolute_uri()
-    
+
     return env
+
 
 def _parse_traceback(trace):
     """Return the given traceback string formatted for a notification."""
@@ -25,35 +27,42 @@ def _parse_traceback(trace):
                     for filename, lineno, funcname, _
                     in traceback.extract_tb(trace) ]
     p_traceback.reverse()
-    
+
     return p_traceback
+
 
 def _parse_message(exc):
     """Return a message for a notification from the given exception."""
     return '%s: %s' % (exc.__class__.__name__, str(exc))
 
+
 def _parse_request(request):
     """Return a request mapping for a notification from the given request."""
     request_get = dict( (str(k), str(v)) for (k, v) in request.GET.items() )
     request_post = dict( (str(k), str(v)) for (k, v) in request.POST.items() )
-    
+
     data = request_post or request_get
     for k in PROTECTED_PARAMS.intersection(data.keys()):
         data[k] = '********************'
-    
+
     return data
+
 
 def _parse_session(session):
     """Return a request mapping for a notification from the given session."""
+    if not session.keys():
+        return {"HOPTOAD_SESSION": "NOSESSIONINFO"}
+
     return dict( (str(k), str(v)) for (k, v) in session.items() )
+
 
 
 def _generate_payload(request, exc=None, trace=None, message=None, error_class=None):
     """Generate a YAML payload for a Hoptoad notification.
-    
+
     Parameters:
     request -- A Django HTTPRequest.  This is required.
-    
+
     Keyword parameters:
     exc -- A Python Exception object.  If this is not given the
            mess parameter must be.
@@ -69,7 +78,7 @@ def _generate_payload(request, exc=None, trace=None, message=None, error_class=N
     p_environment = _parse_environment(request)
     p_request = _parse_request(request)
     p_session = _parse_session(request.session)
-    
+
     return yaml.dump({ 'notice': {
         'api_key':       settings.HOPTOAD_API_KEY,
         'error_class':   p_error_class,
@@ -81,9 +90,10 @@ def _generate_payload(request, exc=None, trace=None, message=None, error_class=N
         'environment':   p_environment,
     }}, default_flow_style=False)
 
+
 def _ride_the_toad(payload, timeout):
     """Send a notification (an HTTP POST request) to Hoptoad.
-    
+
     Parameters:
     payload -- the YAML payload for the request from _generate_payload()
     timeout -- the maximum timeout, in seconds, or None to use the default
@@ -98,6 +108,7 @@ def _ride_the_toad(payload, timeout):
             urllib2.urlopen(r)
     except urllib2.URLError:
         pass
+
 
 def report(payload, timeout):
     return _ride_the_toad(payload, timeout)
