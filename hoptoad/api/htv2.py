@@ -4,9 +4,6 @@ import logging
 import urllib2
 from xml.dom.minidom import getDOMImplementation
 
-from django.views.debug import get_safe_settings
-from django.conf import settings
-
 from hoptoad import VERSION, NAME, URL
 from hoptoad import get_hoptoad_settings
 from hoptoad.api.htv1 import _parse_environment, _parse_request, _parse_session
@@ -19,33 +16,45 @@ logger = logging.getLogger(__name__)
 def _class_name(class_):
     return class_.__class__.__name__
 
-def _handle_errors(request, response):
+
+def _handle_errors(request, response, exception):
     if response:
         code = "Http%s" % response
         msg = "%(code)s: %(response)s at %(uri)s" % {
                    'code': code,
-                   'response': { 'Http403': "Forbidden",
-                                 'Http404': "Page not found" }[code],
-                   'uri': request.build_absolute_uri()
+                   'response': {'Http403': "Forbidden",
+                                'Http404': "Page not found"}[code],
+                   'uri': request.build_absolute_uri(),
         }
         return (code, msg)
 
-    exc, inst = sys.exc_info()[:2]
+    inst = exception
+    if not exception:
+        # basically, if we didn't pass in an exception, then
+        # try to get the last traceback
+        _exc, inst = sys.exc_info()[:2]
+
     return _class_name(inst), _parse_message(inst)
 
 
-def generate_payload(request_tuple):
+def generate_payload(request, response=None, exception=None):
     """Generate an XML payload for a Hoptoad notification.
 
-    Parameters:
+    Arguments:
 
-    request_tuple -- A tuple containing a Django HTTPRequest and a possible
-                     response code.
+    - `request`: The Django request object
+
+    - `response`: Optional. Response code that was received from the webserver
+
+    - `exception`: Optional. Can be a custom exception that implements
+                   __str__ and has the class name of the error that is
+                   required to be reported.
+
     """
-    request, response = request_tuple
+
     hoptoad_settings = get_hoptoad_settings()
 
-    p_error_class, p_message = _handle_errors(request, response)
+    p_error_class, p_message = _handle_errors(request, response, exception)
 
     # api v2 from: http://help.hoptoadapp.com/faqs/api-2/notifier-api-v2
     xdoc = getDOMImplementation().createDocument(None, "notice", None)
@@ -84,12 +93,18 @@ def generate_payload(request_tuple):
     backtrace = xdoc.createElement('backtrace')
 
     # i do this here because I'm afraid of circular reference..
-    reversed_backtrace = list(
-        reversed(traceback.extract_tb(sys.exc_info()[2]))
-    )
+    reversed_backtrace = None
+    try:
+        reversed_backtrace = traceback.extract_tb(sys.exc_info()[2])
+        reversed_backtrace.reverse()
+    except AttributeError:
+        # if exception doesn't have a stack trace, then it might be a
+        # custom made exception.
+        # TODO: figure out how to do this cleanly
+        pass
 
     if reversed_backtrace:
-        for filename, lineno, funcname, text in reversed_backtrace:
+        for filename, lineno, funcname, _text in reversed_backtrace:
             line = xdoc.createElement('line')
             line.setAttribute('file', str(filename))
             line.setAttribute('number', str(lineno))
@@ -205,7 +220,7 @@ def _ride_the_toad(payload, timeout, use_ssl):
     timeout -- the maximum timeout, in seconds, or None to use the default
 
     """
-    headers = { 'Content-Type': 'text/xml' }
+    headers = {'Content-Type': 'text/xml'}
 
     url_template = '%s://hoptoadapp.com/notifier_api/v2/notices'
     notification_url = url_template % ("https" if use_ssl else "http")

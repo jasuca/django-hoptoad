@@ -1,4 +1,3 @@
-import itertools
 import logging
 import re
 
@@ -12,7 +11,9 @@ from hoptoad.handlers import get_handler
 
 logger = logging.getLogger(__name__)
 
+
 class HoptoadNotifierMiddleware(object):
+
     def __init__(self):
         """Initialize the middleware."""
         hoptoad_settings = get_hoptoad_settings()
@@ -20,6 +21,12 @@ class HoptoadNotifierMiddleware(object):
 
     def _init_middleware(self, hoptoad_settings):
         if 'HOPTOAD_API_KEY' not in hoptoad_settings:
+            raise MiddlewareNotUsed
+
+        blacklisted_envs = hoptoad_settings.get("HOPTOAD_IGNORE_ENV", [])
+        env_name = hoptoad_settings.get("HOPTOAD_ENV_NAME", None)
+
+        if env_name in blacklisted_envs:
             raise MiddlewareNotUsed
 
         if settings.DEBUG:
@@ -61,8 +68,8 @@ class HoptoadNotifierMiddleware(object):
 
         sc = response.status_code
         if sc in [404, 403] and getattr(self, "notify_%d" % sc):
-            self.handler.enqueue(htv2.generate_payload((request, sc)),
-                                 self.timeout)
+            payload = htv2.generate_payload(request, sc, exception=None)
+            self.handler.enqueue(payload, self.timeout)
 
         return response
 
@@ -77,6 +84,7 @@ class HoptoadNotifierMiddleware(object):
         if self._ignore(request):
             return None
 
-        self.handler.enqueue(htv2.generate_payload((request, None)),
-                             self.timeout)
+        payload = htv2.generate_payload(request, None, exception=exc)
+        self.handler.enqueue(payload, self.timeout)
+
         return None
