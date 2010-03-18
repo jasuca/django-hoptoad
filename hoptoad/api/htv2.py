@@ -159,14 +159,15 @@ def generate_payload(request, response=None, exception=None):
         xrequest.appendChild(params)
 
     # /notice/request/session/var -- check if sessions is enabled..
-    sessions = xdoc.createElement('session')
-    for key, value in _parse_session(request.session).iteritems():
-        var = xdoc.createElement('var')
-        var.setAttribute('key', key)
-        value = xdoc.createTextNode(str(value))
-        var.appendChild(value)
-        sessions.appendChild(var)
-    xrequest.appendChild(sessions)
+    if hasattr(request, "session"):
+        sessions = xdoc.createElement('session')
+        for key, value in _parse_session(request.session).iteritems():
+            var = xdoc.createElement('var')
+            var.setAttribute('key', key)
+            value = xdoc.createTextNode(str(value))
+            var.appendChild(value)
+            sessions.appendChild(var)
+        xrequest.appendChild(sessions)
 
     # /notice/request/cgi-data/var -- all meta data
     cgidata = xdoc.createElement('cgi-data')
