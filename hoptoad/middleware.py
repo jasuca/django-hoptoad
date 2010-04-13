@@ -3,6 +3,7 @@ import re
 
 from django.conf import settings
 from django.core.exceptions import MiddlewareNotUsed
+from django.http import Http404
 
 from hoptoad import get_hoptoad_settings
 from hoptoad.api import htv2
@@ -82,6 +83,9 @@ class HoptoadNotifierMiddleware(object):
 
         """
         if self._ignore(request):
+            return None
+
+        if isinstance(exc, Http404) and not self.notify_404:
             return None
 
         payload = htv2.generate_payload(request, None, exception=exc)
