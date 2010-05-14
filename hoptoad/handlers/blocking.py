@@ -4,7 +4,9 @@ import logging
 
 from hoptoad.api import htv2
 
+
 logger = logging.getLogger(__name__)
+
 
 class BlockingNotifier(object):
     """A blocking Hoptoad notifier.  """

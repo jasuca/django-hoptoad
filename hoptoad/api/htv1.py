@@ -8,13 +8,18 @@ from django.conf import settings
 from hoptoad import get_hoptoad_settings
 
 
-PROTECTED_PARAMS = frozenset(get_hoptoad_settings().get('HOPTOAD_PROTECTED_PARAMS', []))
+PROTECTED_PARAMS = frozenset(get_hoptoad_settings()
+                             .get('HOPTOAD_PROTECTED_PARAMS', []))
 
 
 def _parse_environment(request):
-    """Return an environment mapping for a notification from the given request."""
-    env = dict( (str(k), str(v)) for (k, v) in get_safe_settings().items() )
-    env.update( dict( (str(k), str(v)) for (k, v) in request.META.items() ) )
+    """Return an environment mapping for a notification
+    from the given request.
+
+    """
+
+    env = dict((str(k), str(v)) for (k, v) in get_safe_settings().items())
+    env.update(dict((str(k), str(v)) for (k, v) in request.META.items()))
 
     env['REQUEST_URI'] = request.build_absolute_uri()
 
@@ -23,11 +28,11 @@ def _parse_environment(request):
 
 def _parse_traceback(trace):
     """Return the given traceback string formatted for a notification."""
-    p_traceback = [ "%s:%d:in `%s'" % (filename, lineno, funcname)
-                    for filename, lineno, funcname, _
-                    in traceback.extract_tb(trace) ]
-    p_traceback.reverse()
+    p_traceback = ["%s:%d:in '%s'" % (filename, lineno, funcname)
+                   for filename, lineno, funcname, _
+                   in traceback.extract_tb(trace)]
 
+    p_traceback.reverse()
     return p_traceback
 
 
@@ -38,10 +43,19 @@ def _parse_message(exc):
 
 def _parse_request(request):
     """Return a request mapping for a notification from the given request."""
-    request_get = dict( (str(k), str(v)) for (k, v) in request.GET.items() )
-    request_post = dict( (str(k), str(v)) for (k, v) in request.POST.items() )
-
-    data = request_post or request_get
+    data = []
+    for (k, v) in request.POST.items():
+        try:
+            data.append((str(k), str(v)))
+        except UnicodeEncodeError:
+            data.append((str(k), repr(v)))
+    if not data:
+        for (k, v) in request.GET.items():
+            try:
+                data.append((str(k), str(v)))
+            except UnicodeEncodeError:
+                data.append((str(k), repr(v)))
+    data = dict(data)
     for k in PROTECTED_PARAMS.intersection(data.keys()):
         data[k] = '********************'
 
@@ -50,14 +64,14 @@ def _parse_request(request):
 
 def _parse_session(session):
     """Return a request mapping for a notification from the given session."""
-    if not session.keys():
-        return {"HOPTOAD_SESSION": "NOSESSIONINFO"}
-
-    return dict( (str(k), str(v)) for (k, v) in session.items() )
+    return dict((str(k), str(v)) for (k, v) in session.items())
 
 
-
-def _generate_payload(request, exc=None, trace=None, message=None, error_class=None):
+def _generate_payload(request,
+                      exc=None,
+                      trace=None,
+                      message=None,
+                      error_class=None):
     """Generate a YAML payload for a Hoptoad notification.
 
     Parameters:
@@ -79,15 +93,15 @@ def _generate_payload(request, exc=None, trace=None, message=None, error_class=N
     p_request = _parse_request(request)
     p_session = _parse_session(request.session)
 
-    return yaml.dump({ 'notice': {
-        'api_key':       settings.HOPTOAD_API_KEY,
-        'error_class':   p_error_class,
-        'error_message': p_message,
-        'backtrace':     p_traceback,
-        'request':       { 'url': request.build_absolute_uri(),
-                           'params': p_request },
-        'session':       { 'key': '', 'data': p_session },
-        'environment':   p_environment,
+    return yaml.dump({'notice':
+                      {'api_key': settings.HOPTOAD_API_KEY,
+                       'error_class': p_error_class,
+                       'error_message': p_message,
+                       'backtrace':  p_traceback,
+                       'request': {'url': request.build_absolute_uri(),
+                                   'params': p_request},
+                       'session': {'key': '', 'data': p_session},
+                       'environment': p_environment,
     }}, default_flow_style=False)
 
 
@@ -98,8 +112,8 @@ def _ride_the_toad(payload, timeout):
     payload -- the YAML payload for the request from _generate_payload()
     timeout -- the maximum timeout, in seconds, or None to use the default
     """
-    headers = { 'Content-Type': 'application/x-yaml',
-                'Accept': 'text/xml, application/xml', }
+    headers = {'Content-Type': 'application/x-yaml',
+               'Accept': 'text/xml, application/xml', }
     r = urllib2.Request('http://hoptoadapp.com/notices', payload, headers)
     try:
         if timeout:
