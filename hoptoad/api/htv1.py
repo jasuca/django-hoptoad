@@ -64,7 +64,31 @@ def _parse_request(request):
 
 def _parse_session(session):
     """Return a request mapping for a notification from the given session."""
-    return dict((str(k), str(v)) for (k, v) in session.items())
+    try:
+        session_keys = session.keys()
+    except Exception:
+        # It is possible, especially if you're using a 100% ACID-compliant
+        # database, that an exception was thrown and the database has
+        # stopped processing any further transactions without a rollback
+        # issued.
+        #
+        # It shouldn't be the job of a middleware instance to issue a
+        # rollback, so, we will just return an empty dictionary with the
+        # error messages
+        return {"SessionInfo": "Couldn't extract session because the database "
+                               "had a failed transaction. "}
+    else:
+        if not session_keys:
+            return {"SessionInfo": "No session information could be extracted"}
+
+    try:
+        session_items = session.items()
+    except Exception:
+        # Same reasoning as above for the session keys
+        return {"SessionInfo": "Couldn't extract session because the database "
+                               "had a failed transaction. "}
+    else:
+        return dict((str(k), str(v)) for (k, v) in session_items)
 
 
 def _generate_payload(request,
