@@ -38,7 +38,7 @@ def _parse_traceback(trace):
 
 def _parse_message(exc):
     """Return a message for a notification from the given exception."""
-    return '%s: %s' % (exc.__class__.__name__, str(exc))
+    return '%s: %s' % (exc.__class__.__name__, unicode(exc))
 
 
 def _parse_request(request):
