@@ -38,8 +38,8 @@ def _parse_message(exc):
 
 def _parse_request(request):
     """Return a request mapping for a notification from the given request."""
-    request_get = dict( (str(k), str(v.encode('UTF-8', 'replace'))) for (k, v) in request.GET.items() )
-    request_post = dict( (str(k), str(v.encode('UTF-8', 'replace'))) for (k, v) in request.POST.items() )
+    request_get = dict( (str(k), str(v.encode('ascii', 'replace'))) for (k, v) in request.GET.items() )
+    request_post = dict( (str(k), str(v.encode('ascii', 'replace'))) for (k, v) in request.POST.items() )
 
     data = request_post or request_get
     for k in PROTECTED_PARAMS.intersection(data.keys()):
