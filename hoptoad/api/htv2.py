@@ -153,7 +153,7 @@ def generate_payload(request, response=None, exception=None):
         for key, value in req_params:
             var = xdoc.createElement('var')
             var.setAttribute('key', key)
-            value = xdoc.createTextNode(str(value))
+            value = xdoc.createTextNode(str(value.encode('ascii', 'replace')))
             var.appendChild(value)
             params.appendChild(var)
         xrequest.appendChild(params)
@@ -164,7 +164,7 @@ def generate_payload(request, response=None, exception=None):
         for key, value in _parse_session(request.session).iteritems():
             var = xdoc.createElement('var')
             var.setAttribute('key', key)
-            value = xdoc.createTextNode(str(value))
+            value = xdoc.createTextNode(str(value.encode('ascii', 'replace')))
             var.appendChild(value)
             sessions.appendChild(var)
         xrequest.appendChild(sessions)
@@ -174,7 +174,7 @@ def generate_payload(request, response=None, exception=None):
     for key, value in _parse_environment(request).iteritems():
         var = xdoc.createElement('var')
         var.setAttribute('key', key)
-        value = xdoc.createTextNode(str(value))
+        value = xdoc.createTextNode(str(value.encode('ascii', 'replace')))
         var.appendChild(value)
         cgidata.appendChild(var)
     xrequest.appendChild(cgidata)
