@@ -237,6 +237,7 @@ def _ride_the_toad(payload, timeout, use_ssl):
             response = urllib2.urlopen(r, timeout=timeout)
         else:
             response = urllib2.urlopen(r)
+
     except urllib2.URLError:
         logger.exception("Caught an exception while delivering payload "
                          "to hoptoad! Discarding..")
@@ -265,7 +266,6 @@ def _ride_the_toad(payload, timeout, use_ssl):
         if status == 500:
             # hoptoad is down
             logger.critical("Hoptoad is down! Can't send payload..discarding.")
-
 
 def report(payload, timeout):
     use_ssl = get_hoptoad_settings().get('HOPTOAD_USE_SSL', False)

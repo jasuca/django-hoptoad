@@ -13,13 +13,14 @@ from hoptoad.handlers.blocking import BlockingNotifier
 
 logger = logging.getLogger(__name__)
 
+
 def get_handler(*args, **kwargs):
     """Returns an initialized handler object"""
     hoptoad_settings = get_hoptoad_settings()
     handler = hoptoad_settings.get("HOPTOAD_HANDLER", "threadpool")
     if handler.lower() == 'threadpool':
         threads = hoptoad_settings.get("HOPTOAD_THREAD_COUNT", 4)
-        return ThreadedNotifier(threads , *args, **kwargs)
+        return ThreadedNotifier(threads, *args, **kwargs)
     elif handler.lower() == 'blocking':
         return BlockingNotifier(*args, **kwargs)
     else:
