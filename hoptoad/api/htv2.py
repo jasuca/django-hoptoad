@@ -1,8 +1,13 @@
 import sys
+import socket
 import traceback
 import logging
 import urllib2
 from xml.dom.minidom import getDOMImplementation
+
+from django.views.debug import get_safe_settings
+from django.core.urlresolvers import resolve
+from django.conf import settings
 
 from hoptoad import VERSION, NAME, URL
 from hoptoad import get_hoptoad_settings
@@ -11,11 +16,6 @@ from hoptoad.api.htv1 import _parse_message
 
 
 logger = logging.getLogger(__name__)
-
-
-def _class_name(class_):
-    return class_.__class__.__name__
-
 
 def _handle_errors(request, response, exception):
     if response:
@@ -34,7 +34,7 @@ def _handle_errors(request, response, exception):
         # try to get the last traceback
         _exc, inst = sys.exc_info()[:2]
 
-    return _class_name(inst), _parse_message(inst)
+    return inst.__class__.__name__, _parse_message(inst)
 
 
 def generate_payload(request, response=None, exception=None):
@@ -128,23 +128,19 @@ def generate_payload(request, response=None, exception=None):
     xurl.appendChild(xurl_data)
     xrequest.appendChild(xurl)
 
-    # /notice/request/component -- not sure..
+    view_func = resolve(request.path)[0]
+
+    # /notice/request/component -- component where error occured
     comp = xdoc.createElement('component')
-    #comp_data = xdoc.createTextNode('')
+    comp_data = xdoc.createTextNode(view_func.__module__)
+    comp.append(comp_data)
     xrequest.appendChild(comp)
 
     # /notice/request/action -- action which error occured
-    # ... no fucking clue..
-
-    # sjl: "actions" are the Rails equivalent of Django's views
-    #      Is there a way to figure out which view a request object went to
-    #      (if any)?  Anyway, it's not GET/POST so I'm commenting it for now.
-
-    #action = xdoc.createElement('action') # maybe GET/POST??
-    #action_data = u"%s %s" % (request.method, request.META['PATH_INFO'])
-    #action_data = xdoc.createTextNode(action_data)
-    #action.appendChild(action_data)
-    #xrequest.appendChild(action)
+    action = xdoc.createElement('action')
+    action_data = xdoc.createTextNode(view_func.__name__)
+    action.appendChild(action_data)
+    xrequest.appendChild(action)
 
     # /notice/request/params/var -- check request.GET/request.POST
     req_params = _parse_request(request).items()
@@ -190,28 +186,20 @@ def generate_payload(request, response=None, exception=None):
 
     # /notice/server-environment/environment-name -- environment name? wtf..
     envname = xdoc.createElement('environment-name')
-    # no idea...
-
-    # sjl: This is supposed to be set to something like "test", "staging",
-    #      or "production" to help you group the errors in the web interface.
-    #      I'm still thinking about the best way to support this.
-
-    # bmjames: Taking this from a settings variable. I personally have a
-    #          different settings.py for every environment and my deploy
-    #          script puts the correct one in place, so this makes sense.
-    #          But even if one had a single settings.py shared among
-    #          environments, it should be possible to set this variable
-    #          dynamically. It would simply be the responsibility of
-    #          settings.py to do it, rather than the hoptoad middleware.
-
-    envname_text = hoptoad_settings.get('HOPTOAD_ENV_NAME', 'Unknown')
+    envname_text = getattr(settings, 'HOPTOAD_ENV_NAME', socket.gethostname())
     envname_data = xdoc.createTextNode(envname_text)
     envname.appendChild(envname_data)
     serverenv.appendChild(envname)
+
+    appver = xdoc.createElement('app-version')
+    appver_text = getattr(settings, 'HOPTOAD_APP_VERSION', '0.0.0')
+    appver_data = xdoc.createTextNode(appver_text)
+    appver.appendChild(appver_data)
+    serverenv.appendChild(appver)
+
     notice.appendChild(serverenv)
-
+    
     return xdoc.toxml('utf-8')
-
 
 def _ride_the_toad(payload, timeout, use_ssl):
     """Send a notification (an HTTP POST request) to Hoptoad.

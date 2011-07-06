@@ -1,6 +1,5 @@
 import traceback
 import urllib2
-import yaml
 
 from django.views.debug import get_safe_settings
 from django.conf import settings
@@ -111,6 +110,8 @@ def _generate_payload(request,
     error_class -- A string representing the error class.  If this is not
                    given the excc parameter must be.
     """
+    import yaml
+
     p_message = message if message else _parse_message(exc)
     p_error_class = error_class if error_class else exc.__class__.__name__
     p_traceback = _parse_traceback(trace) if trace else []
