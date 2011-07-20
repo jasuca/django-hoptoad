@@ -15,6 +15,7 @@ static/images/autosprites
 .pydevproject
 *.swp
 *.swo
+.DS_Store
 \#*
 static/sitemap*.xml
 static/sitemaps/XyZZy/*

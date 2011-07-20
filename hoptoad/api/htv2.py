@@ -133,7 +133,7 @@ def generate_payload(request, response=None, exception=None):
     # /notice/request/component -- component where error occured
     comp = xdoc.createElement('component')
     comp_data = xdoc.createTextNode(view_func.__module__)
-    comp.append(comp_data)
+    comp.appendChild(comp_data)
     xrequest.appendChild(comp)
 
     # /notice/request/action -- action which error occured
