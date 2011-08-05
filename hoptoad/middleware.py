@@ -18,6 +18,10 @@ class HoptoadNotifierMiddleware(object):
     def __init__(self):
         """Initialize the middleware."""
         hoptoad_settings = get_hoptoad_settings()
+
+        if len(hoptoad_settings) == 0:
+            raise MiddlewareNotUsed
+
         self._init_middleware(hoptoad_settings)
 
     def _init_middleware(self, hoptoad_settings):

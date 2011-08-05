@@ -19,9 +19,4 @@ def get_hoptoad_settings():
         for attr in ifilter(lambda x: x.startswith('HOPTOAD'), dir(settings)):
             hoptoad_settings[attr] = getattr(settings, attr)
         
-        if not hoptoad_settings:
-            # there were no settings for hoptoad at all..
-            # should probably log here
-            raise MiddlewareNotUsed
-    
     return hoptoad_settings
